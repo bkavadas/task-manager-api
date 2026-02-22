@@ -3,7 +3,8 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import crud
@@ -38,9 +39,27 @@ app = FastAPI(
 
 
 @app.get("/health", tags=["health"])
-async def health_check() -> dict[str, str]:
-    """Return a simple liveness probe response."""
-    return {"status": "healthy"}
+async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    """Return application status and database connectivity check.
+    
+    Returns:
+        Dictionary with status and database connectivity information.
+    """
+    health_status = {"status": "healthy", "database": "connected"}
+    
+    try:
+        # Test database connectivity with a simple query
+        await db.execute(text("SELECT 1"))
+    except Exception as e:
+        health_status["status"] = "unhealthy"
+        health_status["database"] = "disconnected"
+        health_status["error"] = str(e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=health_status
+        )
+    
+    return health_status
 
 
 # ---------------------------------------------------------------------------
@@ -64,12 +83,23 @@ async def create_task(
 
 @app.get("/tasks", response_model=list[TaskResponse], tags=["tasks"])
 async def list_tasks(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    completed: bool | None = Query(None, description="Filter by completion status"),
     db: AsyncSession = Depends(get_db),
 ) -> list[TaskResponse]:
-    """Return a paginated list of all tasks."""
-    return await crud.get_tasks(db, skip=skip, limit=limit)
+    """Return a paginated list of tasks with optional status filter.
+    
+    Args:
+        skip: Number of records to skip (offset).
+        limit: Maximum number of records to return (1-1000).
+        completed: Optional filter by completion status. None returns all tasks.
+        db: Database session dependency.
+    
+    Returns:
+        List of TaskResponse objects matching the criteria.
+    """
+    return await crud.get_tasks(db, skip=skip, limit=limit, completed=completed)
 
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
@@ -110,9 +140,17 @@ async def delete_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a task by ID."""
-    deleted = await crud.delete_task(db, task_id)
-    if not deleted:
+    """Delete a task by ID.
+    
+    Args:
+        task_id: The ID of the task to delete.
+        db: Database session dependency.
+    
+    Raises:
+        HTTPException: 404 if the task is not found.
+    """
+    deleted_task = await crud.delete_task(db, task_id)
+    if deleted_task is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
         )
