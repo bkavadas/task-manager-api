@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,7 +104,7 @@ async def list_tasks(
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def get_task(
-    task_id: int,
+    task_id: int = Path(..., ge=0),
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Return a single task by ID."""
@@ -118,8 +118,8 @@ async def get_task(
 
 @app.patch("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
 async def update_task(
-    task_id: int,
-    task_update: TaskUpdate,
+    task_id: int = Path(..., ge=0),
+    task_update: TaskUpdate = ...,
     db: AsyncSession = Depends(get_db),
 ) -> TaskResponse:
     """Partially update an existing task."""
@@ -137,7 +137,7 @@ async def update_task(
     tags=["tasks"],
 )
 async def delete_task(
-    task_id: int,
+    task_id: int = Path(..., ge=0),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a task by ID.

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool, field_validator
 
 
 class TaskBase(BaseModel):
@@ -12,6 +12,14 @@ class TaskBase(BaseModel):
     description: str | None = Field(
         None, max_length=1000, examples=["Milk, eggs, bread"]
     )
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def strip_title(cls, v: str) -> str:
+        """Strip surrounding whitespace; min_length=1 then rejects blank strings."""
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
 
 class TaskCreate(TaskBase):
@@ -26,7 +34,15 @@ class TaskUpdate(BaseModel):
 
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = Field(None, max_length=1000)
-    completed: bool | None = None
+    completed: StrictBool | None = None
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def strip_title(cls, v: str | None) -> str | None:
+        """Strip surrounding whitespace; min_length=1 then rejects blank strings."""
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
 
 class TaskResponse(TaskBase):
