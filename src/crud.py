@@ -16,14 +16,25 @@ async def get_task(db: AsyncSession, task_id: int) -> Task | None:
     return result.scalar_one_or_none()
 
 
-async def get_tasks(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Task]:
-    """Fetch a paginated list of all tasks.
+async def get_tasks(
+    db: AsyncSession, skip: int = 0, limit: int = 100, completed: bool | None = None
+) -> list[Task]:
+    """Fetch a paginated list of tasks with optional status filter.
 
     Args:
+        db: The async database session.
         skip: Number of records to skip (offset).
         limit: Maximum number of records to return.
+        completed: Optional filter by completion status. None returns all tasks.
+
+    Returns:
+        List of Task instances matching the criteria.
     """
-    result = await db.execute(select(Task).offset(skip).limit(limit))
+    query = select(Task)
+    if completed is not None:
+        query = query.where(Task.completed == completed)
+    query = query.offset(skip).limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -56,13 +67,18 @@ async def update_task(
     return db_task
 
 
-async def delete_task(db: AsyncSession, task_id: int) -> bool:
+async def delete_task(db: AsyncSession, task_id: int) -> Task | None:
     """Delete a task by ID.
 
-    Returns True if the task was deleted, False if it did not exist.
+    Args:
+        db: The async database session.
+        task_id: The ID of the task to delete.
+
+    Returns:
+        The deleted Task instance, or None if the task does not exist.
     """
     db_task = await get_task(db, task_id)
     if db_task is None:
-        return False
+        return None
     await db.delete(db_task)
-    return True
+    return db_task
