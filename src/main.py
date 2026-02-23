@@ -2,8 +2,10 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,30 +35,73 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Return a sanitized 500 response for unhandled exceptions."""
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "Internal server error"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Simple in-memory rate limiting
+# ---------------------------------------------------------------------------
+
+_RATE_LIMIT_BUCKETS: dict[tuple[str, str], list[float]] = {}
+
+
+async def rate_limiter(request: Request) -> None:
+    """Naive per-process rate limiter keyed by client IP and path.
+
+    Allows up to 60 requests per minute per IP per path.
+    """
+    import time
+
+    window_seconds = 60.0
+    max_requests = 60
+
+    client_ip = request.client.host if request.client else "unknown"
+    key = (client_ip, request.url.path)
+    now = time.time()
+
+    bucket = _RATE_LIMIT_BUCKETS.get(key, [])
+    # Drop entries outside the window
+    bucket = [ts for ts in bucket if now - ts < window_seconds]
+
+    if len(bucket) >= max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Please try again later.",
+        )
+
+    bucket.append(now)
+    _RATE_LIMIT_BUCKETS[key] = bucket
+
+
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
 
 
-@app.get("/health", tags=["health"])
+@app.get("/health", tags=["health"], dependencies=[Depends(rate_limiter)])
 async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """Return application status and database connectivity check.
     
     Returns:
         Dictionary with status and database connectivity information.
     """
-    health_status = {"status": "healthy", "database": "connected"}
-    
+    health_status: dict[str, str] = {"status": "healthy", "database": "connected"}
+
     try:
         # Test database connectivity with a simple query
         await db.execute(text("SELECT 1"))
-    except Exception as e:
+    except Exception:
         health_status["status"] = "unhealthy"
         health_status["database"] = "disconnected"
-        health_status["error"] = str(e)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=health_status
+            detail="Service unavailable",
         )
     
     return health_status
@@ -72,6 +117,7 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     response_model=TaskResponse,
     status_code=status.HTTP_201_CREATED,
     tags=["tasks"],
+    dependencies=[Depends(rate_limiter)],
 )
 async def create_task(
     task: TaskCreate,
@@ -81,7 +127,12 @@ async def create_task(
     return await crud.create_task(db, task)
 
 
-@app.get("/tasks", response_model=list[TaskResponse], tags=["tasks"])
+@app.get(
+    "/tasks",
+    response_model=list[TaskResponse],
+    tags=["tasks"],
+    dependencies=[Depends(rate_limiter)],
+)
 async def list_tasks(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
@@ -102,7 +153,12 @@ async def list_tasks(
     return await crud.get_tasks(db, skip=skip, limit=limit, completed=completed)
 
 
-@app.get("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
+@app.get(
+    "/tasks/{task_id}",
+    response_model=TaskResponse,
+    tags=["tasks"],
+    dependencies=[Depends(rate_limiter)],
+)
 async def get_task(
     task_id: int = Path(..., ge=0),
     db: AsyncSession = Depends(get_db),
@@ -116,7 +172,12 @@ async def get_task(
     return task
 
 
-@app.patch("/tasks/{task_id}", response_model=TaskResponse, tags=["tasks"])
+@app.patch(
+    "/tasks/{task_id}",
+    response_model=TaskResponse,
+    tags=["tasks"],
+    dependencies=[Depends(rate_limiter)],
+)
 async def update_task(
     task_id: int = Path(..., ge=0),
     task_update: TaskUpdate = ...,
@@ -135,6 +196,7 @@ async def update_task(
     "/tasks/{task_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     tags=["tasks"],
+    dependencies=[Depends(rate_limiter)],
 )
 async def delete_task(
     task_id: int = Path(..., ge=0),

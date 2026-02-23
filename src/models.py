@@ -60,9 +60,9 @@ class TaskV2(Base):
         doc="Title of the task (required, max 200 chars).",
     )
     description: Mapped[str | None] = mapped_column(
-        Text,
+        String(10000),
         nullable=True,
-        doc="Optional detailed description."
+        doc="Optional detailed description (max 10k chars).",
     )
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus, name="task_status"),
