@@ -1,8 +1,10 @@
 """Pydantic schemas for request validation and response serialization."""
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
+from uuid import UUID
 
-from pydantic import BaseModel, Field, StrictBool, field_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator, model_validator
 
 
 class TaskBase(BaseModel):
@@ -55,23 +57,30 @@ class TaskResponse(TaskBase):
 
     model_config = {"from_attributes": True}
 
-from datetime import datetime, timezone
-from typing import Optional
-from uuid import UUID
-
-from pydantic import BaseModel, Field, field_validator, model_validator
 
 class TaskV2Base(BaseModel):
     """
     Shared fields for TaskV2 creation and update.
     """
-    title: str = Field(..., min_length=1, max_length=200, examples=["Buy groceries"])
-    description: Optional[str] = Field(None, max_length=10000, examples=["Milk, eggs, bread"])
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        examples=["Buy groceries"],
+    )
+    description: Optional[str] = Field(
+        None,
+        max_length=10000,
+        examples=["Milk, eggs, bread"],
+    )
     status: str = Field(..., pattern="^(todo|in_progress|done)$", examples=["todo"])
     priority: str = Field(..., pattern="^(low|medium|high)$", examples=["medium"])
     due_date: Optional[datetime] = Field(
         None,
-        description="Optional due date for the task; must not be in the past if provided."
+        description=(
+            "Optional due date for the task; "
+            "must not be in the past if provided."
+        ),
     )
 
     @field_validator("title")

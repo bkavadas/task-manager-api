@@ -135,7 +135,12 @@ async def create_task(
 )
 async def list_tasks(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    limit: int = Query(
+        100,
+        ge=1,
+        le=1000,
+        description="Maximum number of records to return",
+    ),
     completed: bool | None = Query(None, description="Filter by completion status"),
     db: AsyncSession = Depends(get_db),
 ) -> list[TaskResponse]:
