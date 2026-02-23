@@ -69,19 +69,31 @@ async def test_create_task_title_too_long_returns_422(client: AsyncClient) -> No
     response = await client.post("/tasks", json={"title": long_title})
     assert response.status_code == 422
     error_detail = response.json()["detail"]
-    assert any("title" in str(err).lower() or "length" in str(err).lower() for err in error_detail)
+    assert any(
+        "title" in str(err).lower() or "length" in str(err).lower()
+        for err in error_detail
+    )
 
 
-async def test_create_task_description_too_long_returns_422(client: AsyncClient) -> None:
+async def test_create_task_description_too_long_returns_422(
+    client: AsyncClient,
+) -> None:
     """POST /tasks rejects description exceeding 1000 characters."""
     long_description = "a" * 1001
-    response = await client.post("/tasks", json={"title": "Valid title", "description": long_description})
+    response = await client.post(
+        "/tasks", json={"title": "Valid title", "description": long_description}
+    )
     assert response.status_code == 422
     error_detail = response.json()["detail"]
-    assert any("description" in str(err).lower() or "length" in str(err).lower() for err in error_detail)
+    assert any(
+        "description" in str(err).lower() or "length" in str(err).lower()
+        for err in error_detail
+    )
 
 
-async def test_create_task_title_whitespace_only_returns_422(client: AsyncClient) -> None:
+async def test_create_task_title_whitespace_only_returns_422(
+    client: AsyncClient,
+) -> None:
     """POST /tasks rejects title with only whitespace characters."""
     response = await client.post("/tasks", json={"title": "   \t\n  "})
     assert response.status_code == 422
@@ -168,9 +180,8 @@ async def test_list_tasks_pagination_skip_and_limit(client: AsyncClient) -> None
 async def test_list_tasks_filter_completed_true(client: AsyncClient) -> None:
     """GET /tasks filters by completed=True."""
     # Create completed and incomplete tasks
-    task1 = await client.post("/tasks", json={"title": "Incomplete task"})
-    task1_id = task1.json()["id"]
-    
+    await client.post("/tasks", json={"title": "Incomplete task"})
+
     task2 = await client.post("/tasks", json={"title": "Complete task"})
     task2_id = task2.json()["id"]
     await client.patch(f"/tasks/{task2_id}", json={"completed": True})
@@ -218,7 +229,9 @@ async def test_list_tasks_no_filter_returns_all(client: AsyncClient) -> None:
     assert len(data) == 2
 
 
-async def test_list_tasks_invalid_skip_negative_returns_422(client: AsyncClient) -> None:
+async def test_list_tasks_invalid_skip_negative_returns_422(
+    client: AsyncClient,
+) -> None:
     """GET /tasks rejects negative skip value."""
     response = await client.get("/tasks?skip=-1")
     assert response.status_code == 422
@@ -230,13 +243,17 @@ async def test_list_tasks_invalid_limit_zero_returns_422(client: AsyncClient) ->
     assert response.status_code == 422
 
 
-async def test_list_tasks_invalid_limit_too_large_returns_422(client: AsyncClient) -> None:
+async def test_list_tasks_invalid_limit_too_large_returns_422(
+    client: AsyncClient,
+) -> None:
     """GET /tasks rejects limit exceeding 1000."""
     response = await client.get("/tasks?limit=1001")
     assert response.status_code == 422
 
 
-async def test_list_tasks_invalid_limit_negative_returns_422(client: AsyncClient) -> None:
+async def test_list_tasks_invalid_limit_negative_returns_422(
+    client: AsyncClient,
+) -> None:
     """GET /tasks rejects negative limit value."""
     response = await client.get("/tasks?limit=-1")
     assert response.status_code == 422
@@ -251,7 +268,9 @@ async def test_list_tasks_skip_exceeds_total_returns_empty(client: AsyncClient) 
     assert response.json() == []
 
 
-async def test_list_tasks_invalid_completed_value_returns_422(client: AsyncClient) -> None:
+async def test_list_tasks_invalid_completed_value_returns_422(
+    client: AsyncClient,
+) -> None:
     """GET /tasks rejects invalid completed parameter value."""
     response = await client.get("/tasks?completed=maybe")
     assert response.status_code == 422
@@ -264,7 +283,10 @@ async def test_list_tasks_invalid_completed_value_returns_422(client: AsyncClien
 
 async def test_get_task_success(client: AsyncClient) -> None:
     """GET /tasks/{id} returns the correct task."""
-    created = await client.post("/tasks", json={"title": "Fetch me", "description": "Test description"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Fetch me", "description": "Test description"},
+    )
     task_id = created.json()["id"]
 
     response = await client.get(f"/tasks/{task_id}")
@@ -310,7 +332,10 @@ async def test_get_task_negative_id_returns_422(client: AsyncClient) -> None:
 
 async def test_update_task_success_partial(client: AsyncClient) -> None:
     """PATCH /tasks/{id} applies partial updates successfully."""
-    created = await client.post("/tasks", json={"title": "Original title", "description": "Original desc"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Original title", "description": "Original desc"},
+    )
     task_id = created.json()["id"]
 
     response = await client.patch(
@@ -326,7 +351,10 @@ async def test_update_task_success_partial(client: AsyncClient) -> None:
 
 async def test_update_task_success_all_fields(client: AsyncClient) -> None:
     """PATCH /tasks/{id} updates all provided fields."""
-    created = await client.post("/tasks", json={"title": "Original", "description": "Original desc"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Original", "description": "Original desc"},
+    )
     task_id = created.json()["id"]
 
     response = await client.patch(
@@ -342,7 +370,10 @@ async def test_update_task_success_all_fields(client: AsyncClient) -> None:
 
 async def test_update_task_title_only(client: AsyncClient) -> None:
     """PATCH /tasks/{id} updates only title field."""
-    created = await client.post("/tasks", json={"title": "Original", "description": "Keep this"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Original", "description": "Keep this"},
+    )
     task_id = created.json()["id"]
 
     response = await client.patch(f"/tasks/{task_id}", json={"title": "New title"})
@@ -354,10 +385,16 @@ async def test_update_task_title_only(client: AsyncClient) -> None:
 
 async def test_update_task_description_only(client: AsyncClient) -> None:
     """PATCH /tasks/{id} updates only description field."""
-    created = await client.post("/tasks", json={"title": "Keep this", "description": "Original"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Keep this", "description": "Original"},
+    )
     task_id = created.json()["id"]
 
-    response = await client.patch(f"/tasks/{task_id}", json={"description": "New description"})
+    response = await client.patch(
+        f"/tasks/{task_id}",
+        json={"description": "New description"},
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == "Keep this"
@@ -378,7 +415,10 @@ async def test_update_task_completed_only(client: AsyncClient) -> None:
 
 async def test_update_task_set_description_to_null(client: AsyncClient) -> None:
     """PATCH /tasks/{id} can set description to null."""
-    created = await client.post("/tasks", json={"title": "Task", "description": "Has description"})
+    created = await client.post(
+        "/tasks",
+        json={"title": "Task", "description": "Has description"},
+    )
     task_id = created.json()["id"]
 
     response = await client.patch(f"/tasks/{task_id}", json={"description": None})
@@ -413,17 +453,24 @@ async def test_update_task_title_too_long_returns_422(client: AsyncClient) -> No
     assert response.status_code == 422
 
 
-async def test_update_task_description_too_long_returns_422(client: AsyncClient) -> None:
+async def test_update_task_description_too_long_returns_422(
+    client: AsyncClient,
+) -> None:
     """PATCH /tasks/{id} rejects description exceeding 1000 characters."""
     created = await client.post("/tasks", json={"title": "Valid task"})
     task_id = created.json()["id"]
 
     long_description = "a" * 1001
-    response = await client.patch(f"/tasks/{task_id}", json={"description": long_description})
+    response = await client.patch(
+        f"/tasks/{task_id}",
+        json={"description": long_description},
+    )
     assert response.status_code == 422
 
 
-async def test_update_task_title_whitespace_only_returns_422(client: AsyncClient) -> None:
+async def test_update_task_title_whitespace_only_returns_422(
+    client: AsyncClient,
+) -> None:
     """PATCH /tasks/{id} rejects title with only whitespace."""
     created = await client.post("/tasks", json={"title": "Valid task"})
     task_id = created.json()["id"]
@@ -444,7 +491,9 @@ async def test_update_task_empty_json_succeeds(client: AsyncClient) -> None:
     assert data["title"] == original_data["title"]
 
 
-async def test_update_task_invalid_completed_type_returns_422(client: AsyncClient) -> None:
+async def test_update_task_invalid_completed_type_returns_422(
+    client: AsyncClient,
+) -> None:
     """PATCH /tasks/{id} rejects invalid completed value type."""
     created = await client.post("/tasks", json={"title": "Task"})
     task_id = created.json()["id"]

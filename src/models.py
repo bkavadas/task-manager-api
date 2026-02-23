@@ -1,8 +1,11 @@
 """SQLAlchemy ORM models."""
 
 from datetime import datetime
+from enum import Enum as PyEnum
+import uuid
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, DateTime, Enum, String, func
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -23,13 +26,6 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
-
-
-from enum import Enum as PyEnum
-from sqlalchemy import Enum, Text, Date, String
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-import uuid
-from sqlalchemy.orm import Mapped, mapped_column
 
 
 class TaskStatus(PyEnum):
