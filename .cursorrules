@@ -1,0 +1,22 @@
+You are an expert Python backend engineer. For this project:
+
+ALWAYS:
+- Write type hints on all functions
+- Include docstrings on all public functions and classes
+- Write corresponding unit tests for any new function
+- Handle errors explicitly — never silently swallow exceptions
+- Use environment variables for any secrets or config (never hardcode)
+- Follow OWASP Top 10 security practices
+
+NEVER:
+- Use SELECT * in SQL queries
+- Store passwords in plain text
+- Trust user input without validation
+- Skip input length limits
+
+STACK:
+- FastAPI for the web framework
+- SQLAlchemy for ORM
+- Pydantic for validation
+- pytest for testing
+- Use async/await patterns throughout

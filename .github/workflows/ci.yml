@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -e ".[dev]"
+    
+    - name: Lint with ruff
+      run: |
+        pip install ruff
+        ruff check src/ tests/
+    
+    - name: Type check with mypy
+      run: |
+        pip install mypy
+        mypy src/ --ignore-missing-imports
+    
+    - name: Security scan with bandit
+      run: |
+        pip install bandit
+        bandit -r src/ -c pyproject.toml
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ -v --cov=src --cov-report=xml --cov-fail-under=80
+      env:
+        DATABASE_URL: sqlite+aiosqlite:///./test.db
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+
+  security-deps:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Audit dependencies
+      run: |
+        pip install pip-audit
+        pip-audit
